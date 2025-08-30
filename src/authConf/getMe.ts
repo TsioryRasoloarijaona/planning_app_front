@@ -1,6 +1,5 @@
 // src/api/getMe.ts
-import { get } from "@/hooks/fecthing/get";// <-- adapte le chemin vers ta fonction get<T>
-
+import { get } from "@/hooks/fecthing/get";
 export type Role = "ADMIN" | "EMPLOYEE";
 export type Me = { id: number; name: string; email: string; role: Role };
 
