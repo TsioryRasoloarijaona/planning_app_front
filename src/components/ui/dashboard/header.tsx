@@ -1,42 +1,35 @@
-import { type Account } from "@/interfaces/LoginRes";
-import { get } from "@/hooks/fecthing/get";
-import { useQuery } from "@tanstack/react-query";
-import Dash from "@/components/ui/dashboard/dash";
-import Sidebar from "@/components/ui/dashboard/sidebar";
-import { Bell, Calendar, Headphones, Umbrella, Menu } from "lucide-react";
-import { Outlet } from "react-router-dom";
+
+import { Bell, Menu } from "lucide-react";
 import Pwd from "@/components/Pwd";
 
-export default function Admin() {
-  const fetchUser = async () => {
-    return await get<Account>("account/me");
-  };
+type Account = {
+  name: string;
+  email: string;
+};
 
-  const { data: account } = useQuery<Account>({
-    queryKey: ["user"],
-    queryFn: fetchUser,
-  });
+type HeaderProps = {
+  account: Account | null | undefined;
+  onToggleSidebar: () => void;
+};
 
-  const sidebarContent = [
-    { label: "Agents", icon: <Headphones />, path: "/admin" },
-    { label: "Congés", icon: <Umbrella />, path: "/admin/leave" },
-    { label: "Planning", icon: <Calendar />, path: "/admin/planning" },
-  ];
+export default function Header({ account, onToggleSidebar }: HeaderProps) {
+  const initial = account?.name?.[0]?.toUpperCase() ?? "U";
 
-  // Header -> fonction recevant les contrôles du layout (toggleSidebar)
-  const header = (controls: { toggleSidebar: () => void }) => (
+  return (
     <div className="w-full h-full px-3 sm:px-4 md:px-6 flex items-center justify-between gap-3">
-      {/* Gauche : hamburger (mobile) + logo */}
+      {/* Bloc gauche: Hamburger (mobile) + logo */}
       <div className="flex items-center gap-2">
+        {/* Hamburger visible uniquement sur mobile */}
         <button
           type="button"
           aria-label="Ouvrir le menu"
-          onClick={controls.toggleSidebar}
-          className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100"
+          onClick={onToggleSidebar}
+          className="inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100"
         >
           <Menu className="w-5 h-5" />
         </button>
 
+        {/* Logo */}
         <div className="overflow-hidden w-[120px] sm:w-[150px]">
           <img
             src="/logo1.png"
@@ -46,8 +39,9 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Droite : actions + profil */}
+      {/* Bloc droit: actions + profil (adapté aux tailles) */}
       <div className="flex items-center gap-3 sm:gap-6">
+        {/* Icônes */}
         <ul className="flex items-center gap-3 sm:gap-4">
           <li>
             <button
@@ -63,13 +57,14 @@ export default function Admin() {
           </li>
         </ul>
 
+        {/* Avatar + infos (sur xs on n'affiche que l'avatar) */}
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gray-700 text-white flex items-center justify-center text-sm sm:text-lg">
-            {(account?.name?.[0] ?? "U").toUpperCase()}
+            {initial}
           </div>
           <div className="hidden sm:block">
             <p className="text-sm font-medium leading-tight">
-              {account?.name ?? "Administrateur"}
+              {account?.name ?? "Utilisateur"}
             </p>
             <p className="text-xs text-gray-500 leading-tight">
               {account?.email ?? "—"}
@@ -79,8 +74,4 @@ export default function Admin() {
       </div>
     </div>
   );
-
-  const sidebar: React.ReactNode = <Sidebar items={sidebarContent} />;
-
-  return <Dash header={header} sidebar={sidebar} main={<Outlet />} />;
 }
