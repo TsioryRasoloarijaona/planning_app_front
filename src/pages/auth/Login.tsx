@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/authConf/AuthContext";
 import { getMeAuth } from "@/authConf/getMe";
+import { Loader2 } from "lucide-react"; // ⬅️ spinner
 
 type FormValues = {
   email: string;
@@ -12,6 +13,7 @@ type FormValues = {
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false); // ⬅️ loader
   const navigate = useNavigate();
   const location = useLocation() as any;
   const from = location.state?.from?.pathname as string | undefined;
@@ -21,11 +23,13 @@ export default function Login() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>();
-  const { refresh } = useAuth(); 
+  const { refresh } = useAuth();
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     const baseUrl = import.meta.env.VITE_BASE_URL;
     try {
+      setLoading(true); // start loader
+
       const res = await fetch(`${baseUrl}/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,30 +38,31 @@ export default function Login() {
       });
       if (!res.ok) throw new Error("Unauthorized");
 
-      // 1) Mets à jour l'AuthContext (lit le cookie côté backend)
       await refresh();
-
-      // 2) Récupère l'utilisateur courant (rôle à jour)
       const { authenticated, user } = await getMeAuth();
       if (!authenticated || !user) {
         toast.error("Session non établie");
         return;
       }
 
-      // 3) Redirige en priorité vers la page visée avant login (from),
-      //    sinon selon le rôle actuel
       const dest = from ?? (user.role === "ADMIN" ? "/admin" : "/user");
       navigate(dest, { replace: true });
     } catch (err) {
       toast.error("Invalid credentials");
       console.error(err);
+    } finally {
+      setLoading(false); // stop loader
     }
   };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-white">
       <div className="w-full max-w-md">
-        <form onSubmit={handleSubmit(onSubmit)} className="px-8 pt-10 pb-8">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="px-8 pt-10 pb-8"
+          aria-busy={loading}
+        >
           <div className="text-center mb-8 w-[125px] mx-auto">
             <img src="/logo1.png" alt="Logo" className="mx-auto w-auto" />
           </div>
@@ -69,8 +74,9 @@ export default function Login() {
             <input
               type="email"
               placeholder="Enter your email"
+              disabled={loading} // ⬅️ disable during loading
               {...register("email", { required: true })}
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 shadow-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30"
+              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 shadow-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 disabled:opacity-60"
             />
             {errors.email && (
               <span className="text-sm text-red-500">ce champ est requis</span>
@@ -86,8 +92,9 @@ export default function Login() {
             <input
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
+              disabled={loading} // ⬅️
               {...register("password", { required: true })}
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 pr-11 text-gray-900 placeholder-gray-400 shadow-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30"
+              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 pr-11 text-gray-900 placeholder-gray-400 shadow-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 disabled:opacity-60"
             />
             {errors.password && (
               <span className="text-sm text-red-500">ce champ est requis</span>
@@ -95,7 +102,8 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              disabled={loading} // ⬅️
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 disabled:opacity-60"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
@@ -108,9 +116,11 @@ export default function Login() {
 
           <button
             type="submit"
-            className="mt-12 inline-flex w-full items-center justify-center rounded-md bg-gray-700 px-4 py-3 text-white font-medium hover:opacity-95 focus:outline-none focus:ring-4 focus:ring-violet-500/30 active:scale-[0.99]"
+            disabled={loading} // ⬅️
+            className="mt-12 inline-flex w-full items-center justify-center rounded-md bg-gray-700 px-4 py-3 text-white font-medium hover:opacity-95 focus:outline-none focus:ring-4 focus:ring-violet-500/30 active:scale-[0.99] disabled:opacity-60"
           >
-            se connecter
+            {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            {loading ? "Connexion en cours..." : "se connecter"}
           </button>
         </form>
       </div>
@@ -135,7 +145,6 @@ function EyeIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-
 function EyeOffIcon({ className = "" }: { className?: string }) {
   return (
     <svg
