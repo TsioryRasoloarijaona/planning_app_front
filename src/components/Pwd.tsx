@@ -58,7 +58,7 @@ export default function Pwd() {
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Modifier votre mot de passe</DialogTitle>
+          <DialogTitle className="text-left">Modifier votre mot de passe</DialogTitle>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>

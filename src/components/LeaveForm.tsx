@@ -5,7 +5,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { post } from "@/hooks/fecthing/post";
@@ -23,9 +23,7 @@ function addDays(base: Date, days: number) {
   d.setDate(d.getDate() + days);
   return d;
 }
-
 function toInputDate(d: Date) {
-  // format yyyy-mm-dd
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -35,7 +33,10 @@ function toInputDate(d: Date) {
 export default function LeaveForm() {
   const queryClient = useQueryClient();
 
-  // J+2 à partir d'aujourd'hui (locale)
+  // contrôle du Dialog + loader
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+
   const minStartDateStr = React.useMemo(() => {
     const today = new Date();
     const j2 = addDays(today, 2);
@@ -50,56 +51,79 @@ export default function LeaveForm() {
     reset,
   } = useForm<FormValues>();
 
-  const watchStart = watch("StartDate"); // re-render min du EndDate
+  const watchStart = watch("StartDate");
 
-  // min dynamique de EndDate: start + 1 jour si start défini, sinon J+2
   const minEndDateStr = React.useMemo(() => {
     if (watchStart) {
       const start = new Date(watchStart);
-      return toInputDate(addDays(start, 1)); // strictement après Start
+      return toInputDate(addDays(start, 1));
     }
     return toInputDate(addDays(new Date(minStartDateStr), 1));
   }, [watchStart, minStartDateStr]);
 
   const onsubmit: SubmitHandler<FormValues> = async (data) => {
     try {
+      setLoading(true);
       await post<string, FormValues>("leave", data);
-      queryClient.invalidateQueries({ queryKey: ["leaves"] });
+      await queryClient.invalidateQueries({ queryKey: ["leaves"] });
       toast.success("Demande envoyée avec succès");
-      reset(); // optionnel : vider le formulaire
+      reset();
+      setOpen(false); // ferme le dialog au succès
     } catch (error) {
       toast.error("Erreur lors de l'envoi de la demande");
       console.error(error);
+    } finally {
+      setLoading(false); // stoppe le loader
     }
   };
 
   return (
-    <Dialog>
-      <DialogTrigger>
-        <div className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center">
-          <Plus className="inline-block" />
-        </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-60 sm:w-auto"
+          onClick={() => setOpen(true)}
+          disabled={loading}
+        >
+          <Plus className="h-5 w-5" />
+        </button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Veuillez remplir votre demande</DialogTitle>
 
-          <form className="space-y-4 mt-8" onSubmit={handleSubmit(onsubmit)}>
-            <div className="grid grid-cols-2 gap-4">
+      <DialogContent
+        className="
+          w-[calc(100vw-2rem)]
+          max-w-[min(100vw-2rem,42rem)]
+          sm:max-w-[560px]
+          p-4 sm:p-6 md:p-8
+          max-h-[85vh] overflow-y-auto
+        "
+      >
+        <DialogHeader>
+          <DialogTitle className="text-base sm:text-lg text-left">
+            Veuillez remplir votre demande
+          </DialogTitle>
+
+          <form
+            className="space-y-4 sm:space-y-6 mt-6 sm:mt-8"
+            onSubmit={handleSubmit(onsubmit)}
+            aria-busy={loading}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* StartDate */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm sm:text-base font-medium text-gray-700 text-left">
                   Date de début
                 </label>
                 <input
                   type="date"
-                  min={minStartDateStr} // ⟵ J+2
-                  className="px-3 py-2 mt-2 block w-full rounded-md border border-gray-300 focus:ring-gray-700"
+                  min={minStartDateStr}
+                  disabled={loading}
+                  className="px-3 py-2 mt-2 block w-full rounded-md border border-gray-300 focus:ring-gray-700 disabled:opacity-60 text-sm sm:text-base"
                   {...register("StartDate", {
                     required: "Ce champ est requis",
                     validate: (value) => {
                       if (!value) return true;
-                      // value >= J+2
                       const v = new Date(value);
                       const min = new Date(minStartDateStr);
                       return (
@@ -109,7 +133,7 @@ export default function LeaveForm() {
                   })}
                 />
                 {errors.StartDate && (
-                  <span className="text-sm text-red-600">
+                  <span className="text-xs sm:text-sm text-red-600">
                     {errors.StartDate.message || "Ce champ est requis"}
                   </span>
                 )}
@@ -117,13 +141,14 @@ export default function LeaveForm() {
 
               {/* EndDate */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm sm:text-base font-medium text-gray-700 text-left">
                   Date de fin
                 </label>
                 <input
                   type="date"
-                  min={minEndDateStr} // ⟵ au moins start + 1 jour
-                  className="px-3 py-2 mt-2 block w-full rounded-md border border-gray-300 focus:ring-gray-700"
+                  min={minEndDateStr}
+                  disabled={loading}
+                  className="px-3 py-2 mt-2 block w-full rounded-md border border-gray-300 focus:ring-gray-700 disabled:opacity-60 text-sm sm:text-base"
                   {...register("EndDate", {
                     required: "Ce champ est requis",
                     validate: (value, form) => {
@@ -132,14 +157,9 @@ export default function LeaveForm() {
                       const start = form.StartDate
                         ? new Date(form.StartDate)
                         : null;
-
-                      // fin ≥ J+2 aussi (au cas où start non rempli)
                       const minAbsolute = new Date(minStartDateStr);
-                      if (end < minAbsolute) {
+                      if (end < minAbsolute)
                         return `Choisir une date ≥ ${minStartDateStr}`;
-                      }
-
-                      // fin strictement après start s'il est défini
                       if (start && !(end > start)) {
                         return "La date de fin doit être strictement après la date de début";
                       }
@@ -148,7 +168,7 @@ export default function LeaveForm() {
                   })}
                 />
                 {errors.EndDate && (
-                  <span className="text-sm text-red-600">
+                  <span className="text-xs sm:text-sm text-red-600">
                     {errors.EndDate.message || "Ce champ est requis"}
                   </span>
                 )}
@@ -157,17 +177,18 @@ export default function LeaveForm() {
 
             {/* Reason */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm sm:text-base font-medium text-gray-700 text-left">
                 Description
               </label>
               <textarea
                 rows={3}
                 placeholder="Motif du congé ou note additionnelle"
-                className="mt-2 w-full p-4 rounded-md border border-gray-300 focus:ring-gray-700"
+                disabled={loading}
+                className="mt-2 w-full p-3 sm:p-4 rounded-md border border-gray-300 focus:ring-gray-700 disabled:opacity-60 text-sm sm:text-base h-28 sm:h-32"
                 {...register("Reason", { required: "Ce champ est requis" })}
               />
               {errors.Reason && (
-                <span className="text-sm text-red-600">
+                <span className="text-xs sm:text-sm text-red-600">
                   {errors.Reason.message}
                 </span>
               )}
@@ -176,9 +197,13 @@ export default function LeaveForm() {
             <div className="pt-2">
               <button
                 type="submit"
-                className="inline-flex items-center px-4 py-2 rounded-md bg-gray-700 text-white hover:bg-black"
+                disabled={loading}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-md bg-gray-700 text-white hover:bg-black disabled:opacity-60 w-full sm:w-auto"
               >
-                Envoyer la demande
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>
+                  {loading ? "Envoi en cours..." : "Envoyer la demande"}
+                </span>
               </button>
             </div>
           </form>
