@@ -3,7 +3,6 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/authConf/AuthContext";
-import { getMeAuth } from "@/authConf/getMe";
 import { Loader2 } from "lucide-react";
 import type { LoginRes } from "@/interfaces/LoginRes";
 
