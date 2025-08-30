@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/authConf/AuthContext";
 import { getMeAuth } from "@/authConf/getMe";
 import { Loader2 } from "lucide-react"; 
+import type { LoginRes } from "@/interfaces/LoginRes";
 
 type FormValues = {
   email: string;
@@ -26,13 +27,13 @@ export default function Login() {
     try {
       setLoading(true); // start loader
 
-      const res = await fetch(`${baseUrl}/auth`, {
+      const res  = await fetch(`${baseUrl}/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Unauthorized");
+      if(!res.ok) throw new Error("Unauthorized");
 
       await refresh();
       const { authenticated, user } = await getMeAuth();
